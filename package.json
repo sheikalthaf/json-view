@@ -6,7 +6,8 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "gh": "ng deploy --dir=dist/json-view/browser --base-href=/json-view/"
   },
   "private": true,
   "dependencies": {
@@ -19,16 +20,18 @@
     "@angular/platform-browser-dynamic": "^18.0.0-next.5",
     "@angular/router": "^18.0.0-next.5",
     "@meeui/ui": "^0.0.1",
-    "@ngu/flow": "^0.0.5",
+    "@ngu/flow": "0.0.6",
+    "@ngu/monaco-editor": "^17.0.1",
+    "monaco-editor": "^0.44.0",
     "rxjs": "~7.8.0",
-    "tslib": "^2.3.0",
-    "zone.js": "~0.14.3"
+    "tslib": "^2.3.0"
   },
   "devDependencies": {
     "@angular-devkit/build-angular": "^18.0.0-next.3",
     "@angular/cli": "^18.0.0-next.3",
     "@angular/compiler-cli": "^18.0.0-next.5",
     "@types/jasmine": "~5.1.0",
+    "angular-cli-ghpages": "2.0.0-beta.2",
     "autoprefixer": "^10.4.19",
     "jasmine-core": "~5.1.0",
     "karma": "~6.4.0",

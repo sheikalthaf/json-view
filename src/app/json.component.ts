@@ -1,63 +1,75 @@
 import { JsonPipe, KeyValuePipe } from '@angular/common';
-import { Component, OnInit, afterNextRender, viewChild } from '@angular/core';
+import { Component, OnInit, viewChild } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import {
   FlowComponent,
   FlowChildComponent,
-  FlowOptions,
   FlowConfig,
   Arrangements,
   FitToWindow,
 } from '@ngu/flow';
+import { EditorComponent } from '@ngu/monaco-editor';
+import { JsonParser } from './json-parser';
 
 @Component({
   standalone: true,
   selector: 'app-json',
   imports: [
     FlowComponent,
+    FormsModule,
     FlowChildComponent,
     JsonPipe,
     KeyValuePipe,
+    EditorComponent,
   ],
   template: `
-    <div class="flex w-[25rem] flex-col gap-4 overflow-auto p-4">
-      <pre
-        contenteditable="true"
-        class="text-balance"
-        (input)="updateJson($event)"
-      >
- {{ json | json }}
- </pre
-      >
+    <div class="flex w-[25rem] flex-col gap-4 overflow-auto">
+      <ngx-monaco-editor
+        [options]="editorOptions"
+        [(ngModel)]="code"
+        (ngModelChange)="updateJson()"
+        class="!h-full"
+      ></ngx-monaco-editor>
     </div>
     <ngu-flow class="flow flex-1" [config]="config">
-      @for (item of lists; track item.id; let i = $index) {
-        <div
-          [flowChild]="item"
-          class="child flex flex-col gap-1 rounded-md border-2 border-gray-300 bg-white p-4"
-        >
-          @for (ob of data[item.id]; track ob) {
-            <div class=" flex gap-2">
-              @if (ob[0]) {
-                <div class="font-semibold text-purple-700 ">{{ ob[0] }}:</div>
-                <div class="font-semibold text-gray-600">"{{ ob[1] }}"</div>
-              } @else {
-                <div class="font-semibold text-gray-600">{{ ob[1] }}</div>
-              }
-            </div>
+      @for (item of parser.lists; track item.id; let i = $index) {
+      <div
+        [flowChild]="item"
+        class="child flex flex-col gap-1 rounded-md border-2 border-gray-300 bg-white p-4"
+      >
+        @for (values of parser.data[item.id]; track values) {
+        <div class=" flex gap-2 relative">
+          @if (values[0]) {
+          <div class="font-semibold text-purple-700 ">{{ values[0] }}:</div>
+          <div class="font-semibold text-gray-600">"{{ values[1] }}"</div>
+          } @else {
+          <div class="font-semibold text-gray-600">{{ values[1] }}</div>
+          } @if (values[2]) {
+          <div
+            [id]="values[2]"
+            class="absolute top-0 -right-5 bg-gray-500 w-2 h-3 bottom-0 m-auto rounded-md"
+          ></div>
           }
         </div>
+        }
+      </div>
       }
     </ngu-flow>
   `,
   styles: `
     .flow {
-      min-height: 90vh;
-      background: #eee;
+      background: rgb(238 238 238 / 53%);
     }
     ngu-flow {
       --flow-dot-color: gray;
       --flow-path-color: gray;
       --dot-size: 1px;
+    }
+    :host {
+      background: url(/grid.svg);
+      background-repeat: repeat;
+      background-size: 73px 73px;
+      background-position: top left;
     }
   `,
   host: {
@@ -76,6 +88,8 @@ export class JsonComponent implements OnInit {
     Plugins: this.plugins,
     ChildDragging: false,
   };
+  editorOptions = { language: 'json', minimap: { enabled: false } };
+  code: string = '';
   json = {
     squadName: 'Super hero squad',
     homeTown: 'Metro City',
@@ -113,25 +127,16 @@ export class JsonComponent implements OnInit {
       },
     ],
   };
-  lists: FlowOptions[] = [
-    { id: '1', x: 0, y: 0, deps: [] },
-    { id: '2', x: 0, y: 0, deps: ['1'] },
-  ];
-  data: Record<string, any[]> = {};
-  index = 0;
+
+  parser = new JsonParser();
 
   constructor() {
+    this.code = JSON.stringify(this.json, null, 2);
     this.updateList(this.json);
-    console.log(this.lists, this.data);
-    afterNextRender(() => {
-      console.log(this.lists, this.data);
-    });
   }
 
   private updateList(json: Object) {
-    this.data = {};
-    this.index = 0;
-    this.lists = this.convertJsonToFlowOptions(json, '', []);
+    this.parser.updateList(json);
     setTimeout(() => {
       this.plugins.arrange.arrange();
     });
@@ -139,46 +144,12 @@ export class JsonComponent implements OnInit {
 
   ngOnInit() {}
 
-  updateJson(event: any) {
+  updateJson() {
     try {
-      console.log(event.target.innerText);
-      const json = JSON.parse(event.target.innerText);
+      const json = JSON.parse(this.code);
       this.updateList(json);
     } catch (e) {
       console.error(e);
     }
-  }
-
-  convertJsonToFlowOptions(obj: any, id = '', op: any) {
-    let options: FlowOptions[] = [];
-    let uid = this.index.toString();
-    this.index++;
-    if (Array.isArray(obj)) {
-      for (let i = 0; i < obj.length; i++) {
-        if (typeof obj[i] === 'object') {
-          options.push(...this.convertJsonToFlowOptions(obj[i], id, options));
-        } else {
-          const iv = `${id}${i}-${uid}`;
-          options.push({ id: iv, x: 0, y: 0, deps: [id] });
-          this.data[iv] = [['', obj[i]]];
-        }
-      }
-      return options;
-    }
-    const keys = Object.keys(obj);
-    let ob: any[] = [];
-    options.push({ id: uid, x: 0, y: 0, deps: id ? [id] : [] });
-    for (let key of keys) {
-      if (typeof obj[key] === 'object') {
-        const iv = `${id}${key}-${this.index}`;
-        options.push({ id: iv, x: 0, y: 0, deps: [uid] });
-        this.data[iv] = [['', key]];
-        options.push(...this.convertJsonToFlowOptions(obj[key], iv, options));
-      } else {
-        ob.push([key, obj[key]]);
-      }
-    }
-    this.data[uid] = ob;
-    return options;
   }
 }
